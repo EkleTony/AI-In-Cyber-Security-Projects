@@ -1,0 +1,70 @@
+# 1 Sanitize data
+
+# ## 1.1  Data Extraction with  Python  JSON library
+# 
+# 1. This code iterates through all JSON files in the "Cuckoo_reports" folder,
+# 2. extracts the `"apistats"` section from each file, and appends the resulting DataFrames to the dataframes list.
+# 
+# 3. After processing all files, it `concatenates` these DataFrames into a single DataFrame named `final_df` containing data from all JSON files.
+# 4. Finally, we created the `Malware` column based on whether the file name contains `BENIGN=0` or  the `Malware=1`
+
+
+# importing libraries
+import os
+import json
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+
+import warnings
+
+# Specify the path to the Cuckoo_reports folder
+cuckoo_reports_folder = 'Cuckoo_reports'
+
+dataframes2 = []
+
+# List all JSON files in the folder
+jsons_data = [f for f in os.listdir(cuckoo_reports_folder) if f.endswith('.json')]
+
+# Loop through each JSON file
+for json_file in jsons_data:
+    file_path = os.path.join(cuckoo_reports_folder, json_file)
+
+    # Read the JSON file
+    with open(file_path, 'r', encoding='utf-8') as file:
+        json_data = json.load(file)
+
+    # Extract the "apistats" section
+    apistats = json_data.get('behavior', {}).get('apistats', {})
+
+    # Create a DataFrame from the extracted "apistats" data
+    df = pd.DataFrame(apistats).T.reset_index()
+    df.rename(columns={'index': 'API_Call'}, inplace=True)
+
+    # Create the "Malware" column based on the file name
+    df['Malware'] = 1 if 'BENIGN' not in json_file else 0
+
+    # Sum all values for columns except 'API_Call' and 'Malware'
+    df = df.groupby(['Malware'], as_index=False).sum()
+
+    # Append the DataFrame to the list of DataFrames
+    dataframes2.append(df)
+
+# Concatenate all DataFrames into a single DataFrame
+if dataframes2:
+    final_df2 = pd.concat(dataframes2, ignore_index=True)
+else:
+    final_df2 = pd.DataFrame()
+
+# Now, final_df contains one row per JSON file with aggregated values for all columns
+final_df2 = final_df2.drop("API_Call", axis=1)
+print(len(final_df2))
+
+# view top 5 samples of the extracted dataset or api calls
+print(final_df2.head())
+
+# ============= EXPORT Extracted Dataset ========================
+#exporting the csv or dataframe of my extracted dataset
+final_df2.to_csv('df_api_calls.csv', index=False)  # Set index=False to exclude the index column
+print("final_df2 dataset successfully extracted to local memory")
